@@ -1,19 +1,23 @@
 import { useState } from 'react';
-import { Activity, Radio, Users, FileText, Filter, ClipboardList } from 'lucide-react';
+import { Activity, Radio, Users, FileText, Filter, ClipboardList, ImageIcon, Play } from 'lucide-react';
 import Overview from './pages/Overview';
 import Episodes from './pages/Episodes';
 import Extractions from './pages/Extractions';
 import Persons from './pages/Persons';
 import MaintenanceLog from './pages/MaintenanceLog';
 import FilteringFunnel from './pages/FilteringFunnel';
+import Images from './pages/Images';
+import Operations from './pages/Operations';
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: Activity },
+  { id: 'operations', label: 'Operations', icon: Play },
   { id: 'episodes', label: 'Episodes', icon: Radio },
   { id: 'persons', label: 'Persons', icon: Users },
   { id: 'extractions', label: 'Extractions', icon: FileText },
   { id: 'maintenance', label: 'Maintenance Log', icon: ClipboardList },
   { id: 'funnel', label: 'Filtering Funnel', icon: Filter },
+  { id: 'images', label: 'Images', icon: ImageIcon },
 ] as const;
 
 type TabId = (typeof tabs)[number]['id'];
@@ -27,9 +31,7 @@ export default function App() {
       <header className="bg-[var(--secondary)] text-white">
         <div className="max-w-[1400px] mx-auto px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-[var(--accent)] flex items-center justify-center">
-              <Activity size={18} className="text-white" />
-            </div>
+            <img src="/lifeline-icon.svg" alt="Lifeline" className="w-8 h-8" />
             <div>
               <h1 className="text-lg font-bold tracking-tight leading-none">Lifeline Admin</h1>
               <p className="text-xs text-white/60 mt-0.5">Pipeline Visibility Dashboard</p>
@@ -66,11 +68,13 @@ export default function App() {
       <main className="flex-1">
         <div className="max-w-[1400px] mx-auto px-6 py-6">
           {activeTab === 'overview' && <Overview />}
+          {activeTab === 'operations' && <Operations />}
           {activeTab === 'episodes' && <Episodes />}
           {activeTab === 'persons' && <Persons />}
           {activeTab === 'extractions' && <Extractions />}
           {activeTab === 'maintenance' && <MaintenanceLog />}
           {activeTab === 'funnel' && <FilteringFunnel />}
+          {activeTab === 'images' && <Images />}
         </div>
       </main>
     </div>
