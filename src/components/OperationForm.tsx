@@ -101,6 +101,16 @@ const FIELD_CONFIGS: Record<string, FieldConfig[]> = {
   hero_image: [
     { key: 'collection_slug', label: 'Collection', type: 'collection_picker', required: true },
   ],
+  manual_image_fix: [
+    { key: 'collection_slug', label: 'Collection', type: 'collection_picker', required: true },
+    { key: 'target_type', label: 'What to Fix', type: 'select', options: [
+      { value: 'profile', label: 'Profile Image' },
+      { value: 'cover', label: 'Lifeline Cover Image' },
+    ], defaultValue: 'profile' },
+    { key: 'target_selection', label: 'Which ones?', type: 'target_picker', required: true },
+    { key: 'image_url', label: 'Image URL (optional — leave blank to let Claude search)', type: 'text', placeholder: 'https://example.com/image.jpg' },
+    { key: 'search_query', label: 'Search Query (optional — overrides default name search)', type: 'text', placeholder: 'e.g., Zooey Deschanel as Jessica Day New Girl' },
+  ],
 };
 
 interface SelectOption {
@@ -111,11 +121,140 @@ interface SelectOption {
 interface FieldConfig {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox' | 'list' | 'collection_picker';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'checkbox' | 'list' | 'collection_picker' | 'target_picker';
   placeholder?: string;
   required?: boolean;
   options?: (string | SelectOption)[];
   defaultValue?: any;
+}
+
+interface TargetItem {
+  id: string;
+  name: string;
+  has_image: boolean;
+}
+
+function TargetPicker({
+  collectionSlug,
+  targetType,
+  value,
+  onChange,
+}: {
+  collectionSlug: string;
+  targetType: string;
+  value: { mode: string; targets: string[] };
+  onChange: (val: { mode: string; targets: string[] }) => void;
+}) {
+  const [items, setItems] = useState<TargetItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!collectionSlug) {
+      setItems([]);
+      return;
+    }
+    setLoading(true);
+    api.missingImages(collectionSlug, targetType || 'profile')
+      .then((res) => setItems(res.items || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [collectionSlug, targetType]);
+
+  const missingItems = items.filter((i) => !i.has_image);
+  const mode = value?.mode || 'all_missing';
+
+  if (!collectionSlug) {
+    return <div className="text-xs text-[var(--text-muted)]">Select a collection first</div>;
+  }
+  if (loading) {
+    return <div className="text-xs text-[var(--text-muted)] flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Mode selector */}
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            name="target_mode"
+            checked={mode === 'all_missing'}
+            onChange={() => onChange({ mode: 'all_missing', targets: missingItems.map(i => i.name) })}
+            className="accent-[var(--secondary)]"
+          />
+          <span className="text-sm">
+            All missing
+            {missingItems.length > 0 && (
+              <span className="ml-1 text-xs text-red-500 font-medium">({missingItems.length})</span>
+            )}
+            {missingItems.length === 0 && (
+              <span className="ml-1 text-xs text-green-600 font-medium">(none missing)</span>
+            )}
+          </span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            name="target_mode"
+            checked={mode === 'specific'}
+            onChange={() => onChange({ mode: 'specific', targets: [] })}
+            className="accent-[var(--secondary)]"
+          />
+          <span className="text-sm">Pick specific</span>
+        </label>
+      </div>
+
+      {/* Missing items summary */}
+      {mode === 'all_missing' && missingItems.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+          <div className="text-xs font-medium text-amber-800 mb-1.5">Will fix {missingItems.length} missing:</div>
+          <div className="flex flex-wrap gap-1.5">
+            {missingItems.map((item) => (
+              <span key={item.id} className="inline-block bg-white border border-amber-300 rounded px-2 py-0.5 text-xs text-amber-900">
+                {item.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Specific picker — shows all items with checkboxes, missing highlighted */}
+      {mode === 'specific' && (
+        <div className="border border-[var(--border)] rounded-md max-h-48 overflow-y-auto">
+          {items.map((item) => {
+            const checked = (value?.targets || []).includes(item.name);
+            return (
+              <label
+                key={item.id}
+                className={`flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--bg-soft)] cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
+                  !item.has_image ? 'bg-red-50' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...(value?.targets || []), item.name]
+                      : (value?.targets || []).filter((n) => n !== item.name);
+                    onChange({ mode: 'specific', targets: next });
+                  }}
+                  className="accent-[var(--secondary)]"
+                />
+                <span className="text-sm flex-1">{item.name}</span>
+                {!item.has_image && (
+                  <span className="text-xs text-red-500 font-medium">missing</span>
+                )}
+                {item.has_image && (
+                  <span className="text-xs text-green-600">has image</span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CollectionPicker({
@@ -248,7 +387,13 @@ export default function OperationForm({ operationType, typeMeta, onSubmit, onCan
     const config: Record<string, any> = {};
     Object.entries(formData).forEach(([k, v]) => {
       if (v !== '' && v !== undefined && v !== null) {
-        config[k] = v;
+        // Flatten target_selection into target_mode and target_names
+        if (k === 'target_selection' && typeof v === 'object') {
+          config['target_mode'] = v.mode;
+          config['target_names'] = v.targets || [];
+        } else {
+          config[k] = v;
+        }
       }
     });
 
@@ -259,6 +404,11 @@ export default function OperationForm({ operationType, typeMeta, onSubmit, onCan
     .filter((f) => f.required)
     .every((f) => {
       const val = formData[f.key];
+      if (f.type === 'target_picker') {
+        if (!val) return false;
+        if (val.mode === 'all_missing') return true; // API will resolve the targets
+        return val.targets && val.targets.length > 0;
+      }
       if (Array.isArray(val)) return val.length > 0;
       return val !== '' && val !== undefined && val !== null;
     });
@@ -353,6 +503,15 @@ export default function OperationForm({ operationType, typeMeta, onSubmit, onCan
               <CollectionPicker
                 value={formData[field.key] || ''}
                 onChange={(slug) => updateField(field.key, slug)}
+              />
+            )}
+
+            {field.type === 'target_picker' && (
+              <TargetPicker
+                collectionSlug={formData['collection_slug'] || ''}
+                targetType={formData['target_type'] || 'profile'}
+                value={formData[field.key] || { mode: 'all_missing', targets: [] }}
+                onChange={(val) => updateField(field.key, val)}
               />
             )}
           </div>

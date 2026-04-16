@@ -1,36 +1,81 @@
-import { useEffect, useState } from 'react';
-import { api, Episode, EpisodeDetail } from '../lib/api';
-import { ChevronRight, Radio, ArrowLeft } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { api, Episode, EpisodeDetail, Podcast } from '../lib/api';
+import { ChevronRight, Radio, ArrowLeft, Clock, ArrowUpDown } from 'lucide-react';
 
 const TYPE_COLORS: Record<string, string> = {
-  personal_story: 'var(--accent)',
-  quote: 'var(--cyan)',
+  personal_story: 'var(--green)',
+  quote: 'var(--navy-light)',
   opinion: 'var(--orange)',
-  biographical_fact: 'var(--secondary)',
+  biographical_fact: 'var(--navy)',
   relationship: 'var(--purple)',
-  career_event: '#e11d48',
+  career_event: 'var(--red)',
   personality_trait: '#8b5cf6',
-  humor: '#f59e0b',
-  conflict: '#ef4444',
+  humor: '#c77d00',
+  conflict: 'var(--red-light)',
 };
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function formatDate(raw: string): string {
+  if (!raw) return '—';
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw.slice(0, 16);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return raw.slice(0, 16);
+  }
+}
 
 export default function Episodes() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [selected, setSelected] = useState<EpisodeDetail | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [days, setDays] = useState(7);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [selectedPodcasts, setSelectedPodcasts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    api.podcasts().then(setPodcasts);
     setLoading(true);
-    api.episodes(days).then(setEpisodes).finally(() => setLoading(false));
-  }, [days]);
+    api.episodes().then(setEpisodes).finally(() => setLoading(false));
+  }, []);
+
+  const togglePodcast = (name: string) => {
+    setSelectedPodcasts(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const filtered = useMemo(() => {
+    let list = episodes;
+    if (selectedPodcasts.size > 0) {
+      list = list.filter(ep => selectedPodcasts.has(ep.podcast_name));
+    }
+    list = [...list].sort((a, b) => {
+      const da = a.air_date_iso || '';
+      const db = b.air_date_iso || '';
+      return sortOrder === 'newest' ? db.localeCompare(da) : da.localeCompare(db);
+    });
+    return list;
+  }, [episodes, selectedPodcasts, sortOrder]);
 
   const openEpisode = (id: string) => {
     setSelectedId(id);
     api.episodeDetail(id).then(setSelected);
   };
 
+  // Detail view
   if (selected && selectedId) {
     return (
       <div className="space-y-4">
@@ -45,7 +90,8 @@ export default function Episodes() {
           </div>
           <h2 className="text-lg font-bold mb-2">{selected.episode.title}</h2>
           <div className="flex gap-4 text-xs text-[var(--text-muted)]">
-            <span>Aired: {selected.episode.air_date}</span>
+            <span>Aired: {formatDate(selected.episode.air_date)}</span>
+            <span>Duration: {formatDuration(selected.episode.duration_seconds)}</span>
             <span>Status: {selected.episode.processing_status}</span>
             <span>Extractions: {selected.extractions.length}</span>
           </div>
@@ -88,46 +134,96 @@ export default function Episodes() {
     );
   }
 
+  // List view
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          Recent Episodes
-        </h2>
-        <div className="flex gap-2">
-          {[7, 14, 30].map(d => (
-            <button key={d} onClick={() => setDays(d)}
-              className={`px-3 py-1 text-xs rounded-full border cursor-pointer ${days === d ? 'bg-[var(--secondary)] text-white border-[var(--secondary)]' : 'border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-dark)]'}`}>
-              {d}d
+      {/* Filters Bar */}
+      <div className="bg-white rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-start gap-6">
+          {/* Podcast filter */}
+          <div className="flex-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Podcasts</label>
+            <div className="flex flex-wrap gap-2">
+              {podcasts.map(p => {
+                const isSelected = selectedPodcasts.has(p.name);
+                const allClear = selectedPodcasts.size === 0;
+                return (
+                  <button key={p.id} onClick={() => togglePodcast(p.name)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-[var(--secondary)] text-white border-[var(--secondary)]'
+                        : allClear
+                          ? 'border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--border-dark)]'
+                          : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-dark)]'
+                    }`}>
+                    {p.name}
+                    <span className="ml-1.5 opacity-60">{p.episode_count}</span>
+                  </button>
+                );
+              })}
+              {selectedPodcasts.size > 0 && (
+                <button onClick={() => setSelectedPodcasts(new Set())}
+                  className="px-3 py-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div className="shrink-0">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2 block">Air Date</label>
+            <button onClick={() => setSortOrder(s => s === 'newest' ? 'oldest' : 'newest')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--border-dark)]">
+              <ArrowUpDown size={12} />
+              {sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}
             </button>
-          ))}
+          </div>
         </div>
       </div>
 
+      {/* Results count */}
+      <div className="text-xs text-[var(--text-muted)]">
+        {filtered.length} episode{filtered.length !== 1 ? 's' : ''}
+        {selectedPodcasts.size > 0 && ` (filtered from ${episodes.length})`}
+      </div>
+
+      {/* Episode List */}
       {loading ? (
         <div className="text-sm text-[var(--text-muted)] py-10 text-center">Loading episodes...</div>
       ) : (
         <div className="bg-white rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-          {episodes.map((ep) => (
+          {filtered.map((ep) => (
             <button key={ep.id} onClick={() => openEpisode(ep.id)}
               className="w-full px-5 py-3.5 flex items-center gap-4 hover:bg-[var(--bg-soft)] text-left cursor-pointer">
               <div className="w-10 h-10 rounded bg-[var(--secondary-dim)] flex items-center justify-center shrink-0">
                 <Radio size={16} className="text-[var(--secondary)]" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-[var(--cyan)] mb-0.5">{ep.podcast_name}</div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-xs font-semibold text-[var(--cyan)]">{ep.podcast_name}</span>
+                  {ep.duration_seconds && (
+                    <span className="text-xs text-[var(--text-muted)] flex items-center gap-0.5">
+                      <Clock size={10} /> {formatDuration(ep.duration_seconds)}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm font-medium truncate">{ep.title}</p>
                 <div className="flex gap-3 text-xs text-[var(--text-muted)] mt-0.5">
-                  <span>{ep.air_date}</span>
+                  <span>Aired {formatDate(ep.air_date_iso || ep.air_date)}</span>
                   <span>{ep.extraction_count} extractions</span>
-                  <span className="text-[var(--accent)]">{ep.available_count} available</span>
+                  <span className="text-[var(--accent)]" title="Ready to become lifeline entries">{ep.available_count} unused</span>
+                  {ep.used_count > 0 && <span className="text-[var(--cyan)]">{ep.used_count} published</span>}
+                  {ep.rejected_count > 0 && <span className="text-[var(--text-muted)]">{ep.rejected_count} rejected</span>}
                 </div>
               </div>
               <ChevronRight size={16} className="text-[var(--text-muted)] shrink-0" />
             </button>
           ))}
-          {episodes.length === 0 && (
-            <div className="px-5 py-10 text-center text-sm text-[var(--text-muted)]">No episodes in the last {days} days.</div>
+          {filtered.length === 0 && (
+            <div className="px-5 py-10 text-center text-sm text-[var(--text-muted)]">
+              {episodes.length === 0 ? 'No episodes found.' : 'No episodes match the selected filters.'}
+            </div>
           )}
         </div>
       )}

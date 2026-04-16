@@ -1,20 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #77b800;
-  --accent-dim: rgba(119, 184, 0, 0.08);
-  --secondary: #003865;
-  --secondary-dim: rgba(0, 56, 101, 0.08);
-  --cyan: #00aeef;
-  --orange: #fe6401;
+  /* Lifeline Exercise brand palette */
+  --navy: #0A3161;
+  --navy-light: #1a4a7a;
+  --navy-dim: rgba(10, 49, 97, 0.08);
+  --green: #6f9100;
+  --green-light: #9DC183;
+  --green-dim: rgba(111, 145, 0, 0.08);
+  --red: #B31942;
+  --red-light: #c94d6d;
+  --red-dim: rgba(179, 25, 66, 0.08);
+  --cream: #f5f3e6;
+
+  /* Semantic mapping */
+  --accent: var(--green);
+  --accent-dim: var(--green-dim);
+  --secondary: var(--navy);
+  --secondary-dim: var(--navy-dim);
+  --destructive: var(--red);
+  --cyan: var(--navy-light);
+  --orange: #c77d00;
   --purple: #8b5cf6;
+
+  /* Surfaces */
   --bg: #ffffff;
-  --bg-soft: #f7f7f8;
-  --text-primary: #111118;
+  --bg-soft: #f8f9fa;
+  --text-primary: #1F3A52;
   --text-secondary: #52525b;
   --text-muted: #a1a1aa;
   --border: #e4e4e7;
-  --border-dark: #d1d1d6;
+  --border-dark: #CAD2DD;
 }
 
 body {

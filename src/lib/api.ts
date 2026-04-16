@@ -222,6 +222,48 @@ export interface OperationType {
   form_fields: string[];
 }
 
+export interface ReviewEntry {
+  log_id: string;
+  person_name: string;
+  action: string;
+  extraction_type: string;
+  quality_score: number | null;
+  collection_slug: string;
+  published_at: string;
+  entry_id: string | null;
+  title: string;
+  summary: string | null;
+  details: string | null;
+  score: number | null;
+  occurred_on: string | null;
+  sentiment: string | null;
+  date_precision: string | null;
+  tags: string[] | null;
+  origin: string | null;
+  entry_exists: boolean;
+  lifeline_id: string | null;
+  lifeline_title: string | null;
+  lifeline_slug: string | null;
+  lifeline_type: string | null;
+}
+
+export interface ReviewSourceContext {
+  episode_date_start: string | null;
+  episode_date_end: string | null;
+  episodes_processed: number;
+  entries_published: number;
+}
+
+export interface ReviewResponse {
+  entries: ReviewEntry[];
+  stats: {
+    total: number;
+    by_person: Record<string, number>;
+    by_lifeline: Record<string, number>;
+  };
+  source_context: ReviewSourceContext;
+}
+
 export const api = {
   podcasts: () => fetchJson<Podcast[]>('/podcasts'),
   status: () => fetchJson<PipelineStatus>('/status'),
@@ -266,4 +308,16 @@ export const api = {
     return res.json() as Promise<Operation>;
   },
   pendingCount: () => fetchJson<{ count: number }>('/operations/pending/count'),
+
+  // Daily Review
+  reviewEntries: (params: { days?: number; date?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.date) qs.set('date', params.date);
+    else if (params.days) qs.set('days', String(params.days));
+    return fetchJson<ReviewResponse>(`/review/entries?${qs}`);
+  },
+  missingImages: (slug: string, targetType: string) =>
+    fetchJson<{ items: { id: string; name: string; has_image: boolean }[]; collection_title: string }>(
+      `/missing-images?collection_slug=${encodeURIComponent(slug)}&target_type=${encodeURIComponent(targetType)}`
+    ),
 };

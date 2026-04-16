@@ -3,15 +3,15 @@ import { api, FunnelData } from '../lib/api';
 import { Search, ArrowDown } from 'lucide-react';
 
 const TYPE_COLORS: Record<string, string> = {
-  personal_story: 'var(--accent)',
-  quote: 'var(--cyan)',
+  personal_story: 'var(--green)',
+  quote: 'var(--navy-light)',
   opinion: 'var(--orange)',
-  biographical_fact: 'var(--secondary)',
+  biographical_fact: 'var(--navy)',
   relationship: 'var(--purple)',
-  career_event: '#e11d48',
+  career_event: 'var(--red)',
   personality_trait: '#8b5cf6',
-  humor: '#f59e0b',
-  conflict: '#ef4444',
+  humor: '#c77d00',
+  conflict: 'var(--red-light)',
 };
 
 export default function FilteringFunnel() {

@@ -60,13 +60,13 @@ export default function Overview() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Radio} label="Episodes" value={status.episodes.total}
-          sub={`${status.episodes.complete} complete`} color="#003865" />
+          sub={`${status.episodes.complete} complete`} color="#0A3161" />
         <StatCard icon={Users} label="Persons" value={status.persons}
-          sub="tracked across all podcasts" color="#00aeef" />
+          sub="tracked across all podcasts" color="#1a4a7a" />
         <StatCard icon={FileText} label="Extractions" value={status.extractions.total.toLocaleString()}
-          sub={`${status.extractions.today} today`} color="#77b800" />
+          sub={`${status.extractions.today} today`} color="#6f9100" />
         <StatCard icon={Database} label="Available" value={(byStatus.available || 0).toLocaleString()}
-          sub={`${byStatus.used || 0} used · ${byStatus.rejected || 0} rejected`} color="#fe6401" />
+          sub={`${byStatus.used || 0} used · ${byStatus.rejected || 0} rejected`} color="#B31942" />
       </div>
 
       {/* 7-Day Chart */}
